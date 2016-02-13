@@ -1,6 +1,16 @@
+#Import models from scikit learn module:
+from sklearn.linear_model import LogisticRegression
+from sklearn.cross_validation import KFold   #For K-fold cross validation
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier, export_graphviz
+from sklearn.externals.six import StringIO
+import pydot
+from sklearn import metrics
 import pandas as pd
 import numpy as np
-import math
+from matplotlib import pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 import csv
 from sklearn.preprocessing import LabelEncoder
 
@@ -41,12 +51,7 @@ def data_munging(df):
 
     # print df.dtypes
 
-#Import models from scikit learn module:
-from sklearn.linear_model import LogisticRegression
-from sklearn.cross_validation import KFold   #For K-fold cross validation
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier, export_graphviz
-from sklearn import metrics
+
 
 #Generic function for making a classification model and accessing performance:
 def classification_model(model, data, predictors, outcome):
@@ -81,6 +86,13 @@ def classification_model(model, data, predictors, outcome):
   #Fit the model again so that it can be refered outside the function:
   model.fit(data[predictors],data[outcome])
 
+def write_to_csv(filename, predict_results, message = ""):
+    with open(filename, 'w') as f:
+        writer = csv.writer(f, delimiter=',')
+        writer.writerow(["Loan_ID", "Loan_Status"])
+        writer.writerows(zip(test_df['Loan_ID'], predict_results))
+    print message
+
 
 df = pd.read_csv("train_u6lujuX.csv")
 test_df = pd.read_csv("test_Y3wMUE5.csv")
@@ -90,29 +102,49 @@ data_munging(df)
 df = df[df['Credit_History'].notnull()]
 
 
-outcome_var = 'Loan_Status'
-model = LogisticRegression()
+# model = LogisticRegression()
+model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
+# model = RandomForestClassifier(n_estimators=100)
 
-predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area']
-# predictor_var = ['Credit_History','Loan_Amount_Term','LoanAmount_log']
+
+# model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
+
+outcome_var = 'Loan_Status'
+
+# predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
+# predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
+predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
+
+#
+# Approved = df['Loan_Status'].apply(lambda x : x == 'Y')
+# Rejected = df['Loan_Status'].apply(lambda x : x == 'N')
+#
+# plt.plot(df['Loan_Amount_Term'][Approved], df['LoanAmount_log'][Approved], 'go')
+# plt.plot(df['Loan_Amount_Term'][Rejected], df['LoanAmount_log'][Rejected], 'r^')
+# # plt.axis([-1, 2, 0, 20])
+# plt.show()
+
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# ax.scatter(df['Credit_History'][Approved], df['LoanAmount_log'][Approved], df['Loan_Amount_Term'][Approved],  c='g', marker="o")
+# ax.scatter(df['Credit_History'][Rejected], df['LoanAmount_log'][Rejected], df['Loan_Amount_Term'][Rejected],  c='r', marker='^')
+# plt.show()
 
 classification_model(model, df, predictor_var, outcome_var)
 
-test_df['Credit_History'].fillna(0, inplace=True)
-data_munging(test_df)
-test_data = test_df[predictor_var]
+# dot_data = StringIO()
+# export_graphviz(model, out_file=dot_data)
+# graph = pydot.graph_from_dot_data(dot_data.getvalue())
+# graph.write_pdf("Loan_Prediction.pdf")
 
-predict_result = model.predict(test_data)
+# print model.coef_
 
-with open('LogisticClassify_on_Credit_History.csv', 'w') as f:
-    writer = csv.writer(f, delimiter=',')
-    writer.writerows(zip(test_df['Loan_ID'], predict_result))
-
-print "Logistic classifier based on Credit History category!"
+# test_df['Credit_History'].fillna(0, inplace=True)
+# data_munging(test_df)
+# test_data = test_df[predictor_var]
+#
+# predict_result = model.predict(test_data)
+# write_to_csv("RandomForest_Prediction.csv", predict_result, "Random Forest Model")
 
 # predict_test = test_df.apply(classify, axis = 1)
-# with open('Classify_on_Credit_History.csv', 'w') as f:
-#     writer = csv.writer(f, delimiter=',')
-#     writer.writerows(zip(test_df['Loan_ID'],predict_test))
-#
-# print "Simple classifier based on Credit History category!"
+# write_to_csv("Classify_on_Credit_History.csv", predict_result, "Simple classifier based on Credit History category!")
