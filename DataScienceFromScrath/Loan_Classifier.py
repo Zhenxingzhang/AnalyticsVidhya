@@ -2,6 +2,8 @@
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_validation import KFold   #For K-fold cross validation
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.externals.six import StringIO
 import pydot
@@ -22,129 +24,115 @@ def classify(x):
         return "N"
 
 
-def data_munging(df):
-    df['Self_Employed'].fillna('No',inplace=True)
-    df['Gender'].fillna('Male',inplace=True)
-    df['Married'].fillna('Yes',inplace=True)
-    df['Dependents'].fillna(0,inplace=True)
-    df['Loan_Amount_Term'].fillna(360,inplace=True)
+def data_munging(data, loan_pivot_table):
 
+    data['Self_Employed'].fillna('No', inplace=True)
+    data['Gender'].fillna('Male', inplace=True)
+    data['Married'].fillna('Yes', inplace=True)
+    data['Dependents'].fillna(0, inplace=True)
+    data['Loan_Amount_Term'].fillna(360, inplace=True)
 
-    table = df.pivot_table(values='LoanAmount', index='Self_Employed' ,columns='Education', aggfunc=np.median)
+    LoadAmount_MissValue = data[data['LoanAmount'].isnull()].apply(lambda x: loan_pivot_table.loc[x['Self_Employed'], x['Education']], axis = 1)
 
-    LoadAmount_MissValue = df[df['LoanAmount'].isnull()].apply(lambda x: table.loc[x['Self_Employed'],x['Education']], axis = 1)
+    data['LoanAmount'].fillna(LoadAmount_MissValue, inplace=True)
 
-    df['LoanAmount'].fillna(LoadAmount_MissValue, inplace=True)
+    data['LoanAmount_log'] = np.log(data['LoanAmount'])
+    data['TotalIncome'] = data['ApplicantIncome'] + data['CoapplicantIncome']
+    data['TotalIncome_log'] = np.log(data['TotalIncome'])
 
-    # print df.isnull().sum()
-
-    # df['LoanAmount_log'] = df['LoanAmount'].apply(lambda x: math.log(x))
-
-    df['LoanAmount_log'] = np.log(df['LoanAmount'])
-    df['TotalIncome'] = df['ApplicantIncome'] + df['CoapplicantIncome']
-    df['TotalIncome_log'] = np.log(df['TotalIncome'])
-
-    var_mod = ['Gender','Married','Dependents','Education','Self_Employed','Property_Area']
+    var_mod = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area']
     le = LabelEncoder()
     for i in var_mod:
-        df[i] = le.fit_transform(df[i])
-
-    # print df.dtypes
+        data[i] = le.fit_transform(data[i])
 
 
+# Generic function for making a classification model and accessing performance:
+def classification_model(model, data, outcome):
 
-#Generic function for making a classification model and accessing performance:
-def classification_model(model, data, predictors, outcome):
-  #Fit the model:
-  model.fit(data[predictors],data[outcome])
+    model.fit(data, outcome)
 
-  #Make predictions on training set:
-  predictions = model.predict(data[predictors])
+    # Make predictions on training set:
+    predictions = model.predict(data)
 
-  #Print accuracy
-  accuracy = metrics.accuracy_score(predictions,data[outcome])
-  print "Accuracy : %s" % "{0:.3%}".format(accuracy)
+    # Print accuracy
+    accuracy = metrics.accuracy_score(predictions, outcome)
+    print "Accuracy : %s" % "{0:.3%}".format(accuracy)
 
-  #Perform k-fold cross-validation with 5 folds
-  kf = KFold(data.shape[0], n_folds=5)
-  error = []
-  for train, test in kf:
-    # Filter training data
-    train_predictors = (data[predictors].iloc[train,:])
+    # Perform k-fold cross-validation with 5 folds
+    kf = KFold(data.shape[0], n_folds=5)
+    error = []
+    for train, test in kf:
+        # Filter training data
+        train_predictors = (data.iloc[train, :])
 
-    # The target we're using to train the algorithm.
-    train_target = data[outcome].iloc[train]
+        # The target we're using to train the algorithm.
+        train_target = outcome.iloc[train]
 
-    # Training the algorithm using the predictors and target.
-    model.fit(train_predictors, train_target)
+        # Training the algorithm using the predictors and target.
+        model.fit(train_predictors, train_target)
 
-    #Record error from each cross-validation run
-    error.append(model.score(data[predictors].iloc[test,:], data[outcome].iloc[test]))
+        # Record error from each cross-validation run
+        error.append(model.score(data.iloc[test, :], outcome.iloc[test]))
 
-  print "Cross-Validation Score : %s" % "{0:.3%}".format(np.mean(error))
+    print "Cross-Validation Score : %s" % "{0:.3%}".format(np.mean(error))
 
-  #Fit the model again so that it can be refered outside the function:
-  model.fit(data[predictors],data[outcome])
+    # Fit the model again so that it can be refered outside the function:
+    model.fit(data, outcome)
 
-def write_to_csv(filename, predict_results, message = ""):
+
+def write_to_csv(filename, loan_ids, predict_results, message=""):
     with open(filename, 'w') as f:
         writer = csv.writer(f, delimiter=',')
         writer.writerow(["Loan_ID", "Loan_Status"])
-        writer.writerows(zip(test_df['Loan_ID'], predict_results))
+        writer.writerows(zip(loan_ids, predict_results))
     print message
 
 
-df = pd.read_csv("train_u6lujuX.csv")
-test_df = pd.read_csv("test_Y3wMUE5.csv")
+def main():
 
-data_munging(df)
+    train_data = pd.read_csv("train_u6lujuX.csv")
 
-df = df[df['Credit_History'].notnull()]
+    loan_table = train_data.pivot_table(values='LoanAmount', index='Self_Employed', columns='Education', aggfunc=np.median)
+
+    data_munging(train_data, loan_table)
+
+    predict_data = pd.read_csv("test_Y3wMUE5.csv")
+    predict_data['Credit_History'].fillna(1, inplace=True)
+    data_munging(predict_data, loan_table)
+
+    train_data = train_data[train_data['Credit_History'].notnull()]
 
 
-# model = LogisticRegression()
-model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
-# model = RandomForestClassifier(n_estimators=100)
 
+    # model = LogisticRegression()
+    # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
+    # model = RandomForestClassifier(n_estimators=100)
+    model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
+    # model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
 
-# model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
+    outcome_var = 'Loan_Status'
 
-outcome_var = 'Loan_Status'
+    predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
+    # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
+    # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
 
-# predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
-# predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
-predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
+    outcome = train_data[outcome_var]
 
-#
-# Approved = df['Loan_Status'].apply(lambda x : x == 'Y')
-# Rejected = df['Loan_Status'].apply(lambda x : x == 'N')
-#
-# plt.plot(df['Loan_Amount_Term'][Approved], df['LoanAmount_log'][Approved], 'go')
-# plt.plot(df['Loan_Amount_Term'][Rejected], df['LoanAmount_log'][Rejected], 'r^')
-# # plt.axis([-1, 2, 0, 20])
-# plt.show()
+    train_data = train_data[predictor_var]
+    test_data = predict_data[predictor_var]
 
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# ax.scatter(df['Credit_History'][Approved], df['LoanAmount_log'][Approved], df['Loan_Amount_Term'][Approved],  c='g', marker="o")
-# ax.scatter(df['Credit_History'][Rejected], df['LoanAmount_log'][Rejected], df['Loan_Amount_Term'][Rejected],  c='r', marker='^')
-# plt.show()
+    scaler = StandardScaler()
+    scaler.fit(train_data)
+    scaler.transform(train_data)
+    scaler.transform(test_data)
 
-classification_model(model, df, predictor_var, outcome_var)
+    classification_model(model, train_data, outcome)
 
-# dot_data = StringIO()
-# export_graphviz(model, out_file=dot_data)
-# graph = pydot.graph_from_dot_data(dot_data.getvalue())
-# graph.write_pdf("Loan_Prediction.pdf")
+    predict_result = model.predict(test_data)
+    write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
 
-# print model.coef_
+    # predict_test = test_df.apply(classify, axis = 1)
+    # write_to_csv("Classify_on_Credit_History.csv", predict_result, "Simple classifier based on Credit History category!")
 
-# test_df['Credit_History'].fillna(0, inplace=True)
-# data_munging(test_df)
-# test_data = test_df[predictor_var]
-#
-# predict_result = model.predict(test_data)
-# write_to_csv("RandomForest_Prediction.csv", predict_result, "Random Forest Model")
-
-# predict_test = test_df.apply(classify, axis = 1)
-# write_to_csv("Classify_on_Credit_History.csv", predict_result, "Simple classifier based on Credit History category!")
+if __name__ == "__main__":
+    main()
