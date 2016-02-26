@@ -2,7 +2,7 @@
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_validation import KFold   #For K-fold cross validation
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neural_network import MLPClassifier
+#from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.externals.six import StringIO
@@ -40,10 +40,26 @@ def data_munging(data, loan_pivot_table):
     data['TotalIncome'] = data['ApplicantIncome'] + data['CoapplicantIncome']
     data['TotalIncome_log'] = np.log(data['TotalIncome'])
 
+    # var_mod = [ 'Married', 'Dependents', 'Education', 'Self_Employed']
+    var_mod_gender= ['GenderM', 'GenderF'] 
+    var_mod_property = ['Property_AreaUrban','Property_AreaSemi','Property_AreaRural']
     var_mod = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area']
     le = LabelEncoder()
     for i in var_mod:
         data[i] = le.fit_transform(data[i])
+    #use sparse features
+    data['GenderM'] = np.zeros(len(data['Gender'])) 
+    data['GenderF'] = np.zeros(len(data['Gender']))
+    data['Property_AreaRural'] = np.zeros(len(data['Gender']))
+    data['Property_AreaSemi'] = np.zeros(len(data['Gender']))
+    data['Property_AreaUrban'] = np.zeros(len(data['Gender']))
+    for indx in range(len(data['Gender'])):
+        data['GenderM'][indx] =  1 if data['Gender'][indx] == 'Male' else 0
+        data['GenderF'][indx] = 1 if data['Gender'][indx] == 'Female' else 0
+        data['Property_AreaRural'][indx]= 1 if data['Property_Area'][indx] == 'Rural' else 0
+        data['Property_AreaSemi'][indx] =  1 if data['Property_Area'][indx] == 'Semiurban' else 0
+        data['Property_AreaUrban'][indx]= 1 if data['Property_Area'][indx] == 'Urban' else 0
+
 
 
 # Generic function for making a classification model and accessing performance:
@@ -94,7 +110,9 @@ def main():
 
     loan_table = train_data.pivot_table(values='LoanAmount', index='Self_Employed', columns='Education', aggfunc=np.median)
 
+    print "munging data..."
     data_munging(train_data, loan_table)
+    print "munging data...done"
 
     predict_data = pd.read_csv("test_Y3wMUE5.csv")
     predict_data['Credit_History'].fillna(1, inplace=True)
@@ -104,15 +122,16 @@ def main():
 
 
 
-    # model = LogisticRegression()
+     model = LogisticRegression()
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
-    model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
+    #model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
     # model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
 
     outcome_var = 'Loan_Status'
 
-    predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
+    #predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
+    predictor_var = ['Credit_History', 'GenderM','GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural','Property_AreaUrban','Property_AreaSemi', 'LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
 
@@ -126,9 +145,13 @@ def main():
     scaler.transform(train_data)
     scaler.transform(test_data)
 
+    print "training..."
     classification_model(model, train_data, outcome)
+    print "training done"
 
+    print "testing..."
     predict_result = model.predict(test_data)
+    print "testing done"
     write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
 
     # predict_test = test_df.apply(classify, axis = 1)
