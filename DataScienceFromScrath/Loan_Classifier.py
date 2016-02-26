@@ -4,6 +4,7 @@ from sklearn.cross_validation import KFold   #For K-fold cross validation
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.externals.six import StringIO
 import pydot
@@ -39,6 +40,19 @@ def data_munging(data, loan_pivot_table):
     data['LoanAmount_log'] = np.log(data['LoanAmount'])
     data['TotalIncome'] = data['ApplicantIncome'] + data['CoapplicantIncome']
     data['TotalIncome_log'] = np.log(data['TotalIncome'])
+
+    data['GenderM'] = np.zeros(len(data['Gender']))
+    data.loc[data['Gender'].apply(lambda x: x == 'Male'), 'GenderM'] = 1
+
+    data['GenderF'] = np.zeros(len(data['Gender']))
+    data.loc[data['Gender'].apply(lambda x: x == 'Female'), 'GenderF']= 1
+
+    data['Property_AreaRural'] = np.zeros(len(data['Gender']))
+    data.loc[data['Property_Area'].apply(lambda x: x == 'Rural'), 'Property_AreaRural'] = 1
+    data['Property_AreaSemi'] = np.zeros(len(data['Gender']))
+    data.loc[data['Property_Area'].apply(lambda x: x == 'Semiurban'), 'Property_AreaSemi'] = 1
+    data['Property_AreaUrban'] = np.zeros(len(data['Gender']))
+    data.loc[data['Property_Area'].apply(lambda x: x == 'Urban'), 'Property_AreaUrban'] = 1
 
     var_mod = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area']
     le = LabelEncoder()
@@ -96,25 +110,28 @@ def main():
 
     data_munging(train_data, loan_table)
 
+    # print train_data.describe()
+
     predict_data = pd.read_csv("test_Y3wMUE5.csv")
     predict_data['Credit_History'].fillna(1, inplace=True)
     data_munging(predict_data, loan_table)
 
     train_data = train_data[train_data['Credit_History'].notnull()]
 
-
-
-    # model = LogisticRegression()
+    model = LogisticRegression(C=0.2)
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
-    model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
+    # model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
     # model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
+    # model = SVC(C= 1.1)
 
     outcome_var = 'Loan_Status'
 
-    predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
+    # predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
+    predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
+
 
     outcome = train_data[outcome_var]
 
