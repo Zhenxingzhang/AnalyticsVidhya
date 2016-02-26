@@ -1,5 +1,6 @@
 #Import models from scikit learn module:
 from sklearn.linear_model import LogisticRegression
+from sklearn import svm
 from sklearn.cross_validation import KFold   #For K-fold cross validation
 from sklearn.ensemble import RandomForestClassifier
 #from sklearn.neural_network import MLPClassifier
@@ -129,11 +130,12 @@ def main():
 
 
 
-    model = LogisticRegression()
+    model = LogisticRegression(C=0.2)
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
-    # model = RandomForestClassifier(n_estimators=100)
+    #model = RandomForestClassifier(n_estimators=100)
     #model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
     # model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
+    #model = svm.SVC()
 
     outcome_var = 'Loan_Status'
 
