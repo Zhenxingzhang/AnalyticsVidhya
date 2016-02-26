@@ -118,7 +118,10 @@ def main():
 
     train_data = train_data[train_data['Credit_History'].notnull()]
 
-    model = LogisticRegression(C=0.2)
+    baseline_score = metrics.accuracy_score(train_data.apply(classify, axis=1), train_data['Loan_Status'])
+    print "Baseline: {:.3f}%".format(baseline_score*100)
+
+    model = LogisticRegression()
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
     # model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
@@ -130,8 +133,8 @@ def main():
     # predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
-    predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
-
+    # predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
+    predictor_var = ['Credit_History']
 
     outcome = train_data[outcome_var]
 
@@ -145,8 +148,8 @@ def main():
 
     classification_model(model, train_data, outcome)
 
-    predict_result = model.predict(test_data)
-    write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
+    # predict_result = model.predict(test_data)
+    # write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
 
     # predict_test = test_df.apply(classify, axis = 1)
     # write_to_csv("Classify_on_Credit_History.csv", predict_result, "Simple classifier based on Credit History category!")
