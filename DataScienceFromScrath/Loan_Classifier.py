@@ -16,6 +16,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import csv
 from sklearn.preprocessing import LabelEncoder
 
+import pdb
+#pdb.set_trace()
+
 
 def classify(x):
     if x['Credit_History'] == 1.0:
@@ -44,22 +47,26 @@ def data_munging(data, loan_pivot_table):
     var_mod_gender= ['GenderM', 'GenderF'] 
     var_mod_property = ['Property_AreaUrban','Property_AreaSemi','Property_AreaRural']
     var_mod = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area']
-    le = LabelEncoder()
-    for i in var_mod:
-        data[i] = le.fit_transform(data[i])
+    #le = LabelEncoder()
+    #for i in var_mod:
+    #    data[i] = le.fit_transform(data[i])
     #use sparse features
     data['GenderM'] = np.zeros(len(data['Gender'])) 
-    data['GenderF'] = np.zeros(len(data['Gender']))
-    data['Property_AreaRural'] = np.zeros(len(data['Gender']))
-    data['Property_AreaSemi'] = np.zeros(len(data['Gender']))
-    data['Property_AreaUrban'] = np.zeros(len(data['Gender']))
-    for indx in range(len(data['Gender'])):
-        data['GenderM'][indx] =  1 if data['Gender'][indx] == 'Male' else 0
-        data['GenderF'][indx] = 1 if data['Gender'][indx] == 'Female' else 0
-        data['Property_AreaRural'][indx]= 1 if data['Property_Area'][indx] == 'Rural' else 0
-        data['Property_AreaSemi'][indx] =  1 if data['Property_Area'][indx] == 'Semiurban' else 0
-        data['Property_AreaUrban'][indx]= 1 if data['Property_Area'][indx] == 'Urban' else 0
+    data['GenderM'][np.where(data['Gender'] == 'Male')[0]] = 1 
 
+    data['GenderF'] = np.zeros(len(data['Gender']))
+    data['GenderF'][np.where(data['Gender'] == 'Female')[0]] = 1 
+
+    data['Property_AreaRural'] = np.zeros(len(data['Gender']))
+    data['Property_AreaRural'][np.where(data['Property_Area'] == 'Rural')[0]] = 1 
+    data['Property_AreaSemi'] = np.zeros(len(data['Gender']))
+    data['Property_AreaSemi'][np.where(data['Property_Area'] == 'Semiurban')[0]] = 1 
+    data['Property_AreaUrban'] = np.zeros(len(data['Gender']))
+    data['Property_AreaUrban'][np.where(data['Property_Area'] == 'Urban')[0]] = 1 
+
+    le = LabelEncoder()
+    for i in var_mod_property+var_mod_gender+var_mod:
+        data[i] = le.fit_transform(data[i])
 
 
 # Generic function for making a classification model and accessing performance:
@@ -122,7 +129,7 @@ def main():
 
 
 
-     model = LogisticRegression()
+    model = LogisticRegression()
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
     #model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
