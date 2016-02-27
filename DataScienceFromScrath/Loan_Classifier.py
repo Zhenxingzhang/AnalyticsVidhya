@@ -4,14 +4,17 @@ from sklearn.cross_validation import KFold   #For K-fold cross validation
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 from sklearn.externals.six import StringIO
-import pydot
+from sklearn.naive_bayes import GaussianNB
 from sklearn import metrics
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn.metrics import confusion_matrix
+from numpy import asarray as ar
 
 import csv
 from sklearn.preprocessing import LabelEncoder
@@ -39,6 +42,19 @@ def data_munging(data, loan_pivot_table):
     data['LoanAmount_log'] = np.log(data['LoanAmount'])
     data['TotalIncome'] = data['ApplicantIncome'] + data['CoapplicantIncome']
     data['TotalIncome_log'] = np.log(data['TotalIncome'])
+
+    data['GenderM'] = np.zeros(len(data['Gender']))
+    data.loc[data['Gender'].apply(lambda x: x == 'Male'), 'GenderM'] = 1
+
+    data['GenderF'] = np.zeros(len(data['Gender']))
+    data.loc[data['Gender'].apply(lambda x: x == 'Female'), 'GenderF']= 1
+
+    data['Property_AreaRural'] = np.zeros(len(data['Gender']))
+    data.loc[data['Property_Area'].apply(lambda x: x == 'Rural'), 'Property_AreaRural'] = 1
+    data['Property_AreaSemi'] = np.zeros(len(data['Gender']))
+    data.loc[data['Property_Area'].apply(lambda x: x == 'Semiurban'), 'Property_AreaSemi'] = 1
+    data['Property_AreaUrban'] = np.zeros(len(data['Gender']))
+    data.loc[data['Property_Area'].apply(lambda x: x == 'Urban'), 'Property_AreaUrban'] = 1
 
     var_mod = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area']
     le = LabelEncoder()
@@ -96,40 +112,57 @@ def main():
 
     data_munging(train_data, loan_table)
 
+    # print train_data.describe()
+
     predict_data = pd.read_csv("test_Y3wMUE5.csv")
     predict_data['Credit_History'].fillna(1, inplace=True)
     data_munging(predict_data, loan_table)
 
     train_data = train_data[train_data['Credit_History'].notnull()]
 
+    baseline_prediction = train_data.apply(classify, axis=1)
+    baseline_score = metrics.accuracy_score(baseline_prediction, train_data['Loan_Status'])
+    print "Baseline: {:.3f}%".format(baseline_score*100)
+    print confusion_matrix(train_data['Loan_Status'], baseline_prediction)
 
-
-    # model = LogisticRegression()
+    # model = LogisticRegression(C=0.2)
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
-    model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
+    # model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
     # model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
+    model = SVC(C= 1.0)
+    # model = GaussianNB()
 
     outcome_var = 'Loan_Status'
 
-    predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
+    # predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
+    predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
+    # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
 
     outcome = train_data[outcome_var]
 
-    train_data = train_data[predictor_var]
+    training_data = train_data[predictor_var]
     test_data = predict_data[predictor_var]
 
     scaler = StandardScaler()
-    scaler.fit(train_data)
-    scaler.transform(train_data)
+    scaler.fit(training_data)
+    scaler.transform(training_data)
     scaler.transform(test_data)
 
-    classification_model(model, train_data, outcome)
+    classification_model(model, training_data, outcome)
 
-    predict_result = model.predict(test_data)
-    write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
+    predict_result = model.predict(training_data)
+    print confusion_matrix(train_data['Loan_Status'], predict_result)
+
+    # print train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist()
+    index = [all(tup) for tup in zip((predict_result == 'Y').tolist(), train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist())]
+    # print (predict_result == 'Y').tolist()
+    # print train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist()
+    print train_data[index].describe()
+    # predict_result = model.predict(test_data)
+    # write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
 
     # predict_test = test_df.apply(classify, axis = 1)
     # write_to_csv("Classify_on_Credit_History.csv", predict_result, "Simple classifier based on Credit History category!")
