@@ -26,13 +26,13 @@ def modelfit(model, dtrain, dtest, predictors, target, IDcol, filename):
     print "RMSE : %.4g" % np.sqrt(metrics.mean_squared_error(dtrain[target].values, dtrain_predictions))
     print "CV Score : Mean - %.4g | Std - %.4g | Min - %.4g | Max - %.4g" % (np.mean(cv_score),np.std(cv_score),np.min(cv_score),np.max(cv_score))
 
-    #Predict on testing data:
-    dtest[target] = model.predict(dtest[predictors])
-
-    #Export submission file:
-    IDcol.append(target)
-    submission = pd.DataFrame({ x: dtest[x] for x in IDcol})
-    submission.to_csv(filename, index=False)
+    # #Predict on testing data:
+    # dtest[target] = model.predict(dtest[predictors])
+    #
+    # #Export submission file:
+    # IDcol.append(target)
+    # submission = pd.DataFrame({ x: dtest[x] for x in IDcol})
+    # submission.to_csv(filename, index=False)
 
 
 def baseline_run(train, test):

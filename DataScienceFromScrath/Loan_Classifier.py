@@ -1,5 +1,5 @@
 #Import models from scikit learn module:
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.cross_validation import KFold   #For K-fold cross validation
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
@@ -11,10 +11,12 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn import metrics
 import pandas as pd
 import numpy as np
+from sklearn import ensemble
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import confusion_matrix
 from numpy import asarray as ar
+from sklearn.metrics import precision_score, recall_score
 
 import csv
 from sklearn.preprocessing import LabelEncoder
@@ -118,27 +120,34 @@ def main():
     predict_data['Credit_History'].fillna(1, inplace=True)
     data_munging(predict_data, loan_table)
 
-    train_data = train_data[train_data['Credit_History'].notnull()]
+    # train_data = train_data[train_data['Credit_History'].notnull()]
+    train_data = train_data[train_data['Credit_History'] == 1.0]
+    print train_data['Loan_Status'].value_counts()
 
     baseline_prediction = train_data.apply(classify, axis=1)
     baseline_score = metrics.accuracy_score(baseline_prediction, train_data['Loan_Status'])
     print "Baseline: {:.3f}%".format(baseline_score*100)
     print confusion_matrix(train_data['Loan_Status'], baseline_prediction)
 
-    # model = LogisticRegression(C=0.2)
+    # model = LogisticRegression(C=0.2,class_weight='balanced')
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
     # model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
     # model = RandomForestClassifier(n_estimators=25, min_samples_split=25, max_depth=7, max_features=1)
-    model = SVC(C= 1.0)
+    # model = SVC(C= 1.0, kernel= 'rbf', class_weight={'Y': 4, 'N':1})
+    # model = SGDClassifier(class_weight='balanced')
     # model = GaussianNB()
+
+    params = {'n_estimators': 1200, 'max_depth': 5, 'subsample': 0.5,
+          'learning_rate': 0.01, 'min_samples_leaf': 1, 'random_state': 3}
+    model = ensemble.GradientBoostingClassifier(**params)
 
     outcome_var = 'Loan_Status'
 
     # predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
-    predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
+    predictor_var = ['GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
 
     outcome = train_data[outcome_var]
@@ -155,12 +164,15 @@ def main():
 
     predict_result = model.predict(training_data)
     print confusion_matrix(train_data['Loan_Status'], predict_result)
+    print "Binary Precision Score: {0}".format(precision_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
+    print "Binary Recall Score: {0}".format(recall_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
+
 
     # print train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist()
     index = [all(tup) for tup in zip((predict_result == 'Y').tolist(), train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist())]
     # print (predict_result == 'Y').tolist()
     # print train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist()
-    print train_data[index].describe()
+    # print train_data[index].describe()
     # predict_result = model.predict(test_data)
     # write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
 
