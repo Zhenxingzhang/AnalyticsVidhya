@@ -17,6 +17,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.metrics import confusion_matrix
 from numpy import asarray as ar
 from sklearn.metrics import precision_score, recall_score
+import xgboost as xgb
 
 import csv
 from sklearn.preprocessing import LabelEncoder
