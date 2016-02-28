@@ -47,7 +47,7 @@ for i in f1 :
 	j = i.strip()
 	id_list.append(j)
 
-f = open('results2.csv','w')
+f = open('xgboost.csv','w')
 f.write("Loan_ID,Loan_Status\n")
 a = 0
 for i in range(len(test_pred)) :

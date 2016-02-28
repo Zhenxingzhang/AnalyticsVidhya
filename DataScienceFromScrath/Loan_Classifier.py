@@ -107,6 +107,31 @@ def write_to_csv(filename, loan_ids, predict_results, message=""):
     print message
 
 
+def xgboost_classifier(training_data, labels_numeric, test_data):
+    param = {}
+    param['objective'] = 'binary:logistic'
+    param['eta'] = 0.1
+    param['gamma'] = 1
+    #param['n_estimators'] = 500
+    param['min_child_weight'] = 4
+    param['max_depth'] = 5
+    param['subsample'] = 0.85
+    param['colsample_bytree'] = 0.5
+    param['max_delta_step'] = 20
+    #param['lambda'] = 10
+    num_round = 800
+
+    xg_train = xgb.DMatrix(training_data,label=labels_numeric)
+    xg_test = xgb.DMatrix(test_data)
+
+    model = xgb.train(param, xg_train , num_round)
+
+    predict_result = model.predict(xg_train, output_margin = True)
+
+    predict_result = pd.Series(predict_result < 0).replace({True: 'N', False: 'Y'})
+
+    return predict_result
+
 def main():
 
     train_data = pd.read_csv("train_u6lujuX.csv")
@@ -121,8 +146,8 @@ def main():
     predict_data['Credit_History'].fillna(1, inplace=True)
     data_munging(predict_data, loan_table)
 
-    # train_data = train_data[train_data['Credit_History'].notnull()]
-    train_data = train_data[train_data['Credit_History'] == 1.0]
+    train_data = train_data[train_data['Credit_History'].notnull()]
+    # train_data = train_data[train_data['Credit_History'] == 1.0]
     print train_data['Loan_Status'].value_counts()
 
     baseline_prediction = train_data.apply(classify, axis=1)
@@ -130,7 +155,7 @@ def main():
     print "Baseline: {:.3f}%".format(baseline_score*100)
     print confusion_matrix(train_data['Loan_Status'], baseline_prediction)
 
-    # model = LogisticRegression(C=0.2,class_weight='balanced')
+    model = LogisticRegression(C=0.2,class_weight='balanced')
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
     # model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
@@ -139,16 +164,16 @@ def main():
     # model = SGDClassifier(class_weight='balanced')
     # model = GaussianNB()
 
-    params = {'n_estimators': 1200, 'max_depth': 5, 'subsample': 0.5,
-          'learning_rate': 0.01, 'min_samples_leaf': 1, 'random_state': 3}
-    model = ensemble.GradientBoostingClassifier(**params)
+    # params = {'n_estimators': 1200, 'max_depth': 5, 'subsample': 0.5,
+    #       'learning_rate': 0.01, 'min_samples_leaf': 1, 'random_state': 3}
+    # model = ensemble.GradientBoostingClassifier(**params)
 
     outcome_var = 'Loan_Status'
 
     # predictor_var = ['Credit_History', 'Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_Area', 'LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
-    predictor_var = ['GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
+    predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
 
     outcome = train_data[outcome_var]
@@ -161,9 +186,12 @@ def main():
     scaler.transform(training_data)
     scaler.transform(test_data)
 
-    classification_model(model, training_data, outcome)
+    # classification_model(model, training_data, outcome)
+    # predict_result = model.predict(training_data)
 
-    predict_result = model.predict(training_data)
+    labels_numeric = pd.Series(train_data['Loan_Status'].replace({'Y': 1, 'N': 0}),dtype = "float")
+    predict_result = xgboost_classifier(training_data, labels_numeric, training_data)
+
     print confusion_matrix(train_data['Loan_Status'], predict_result)
     print "Binary Precision Score: {0}".format(precision_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
     print "Binary Recall Score: {0}".format(recall_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
