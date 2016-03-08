@@ -2,30 +2,30 @@ import pandas as pd
 import numpy as np
 from scipy.stats import mode
 
-#Read files:
+# Read files:
 train = pd.read_csv("Data/Train_UWu5bXk.csv")
 test = pd.read_csv("Data/Test_u94Q5KV.csv")
 
-#Combine test and train into one file
+# Combine test and train into one file
 train['source']='train'
 test['source']='test'
 data = pd.concat([train, test],ignore_index=True)
 print train.shape, test.shape, data.shape
 
-#Check missing values:
+# Check missing values:
 print data.apply(lambda x: sum(x.isnull()))
 
-#Number of unique values in each:
+# Number of unique values in each:
 print data.apply(lambda x: len(x.unique()))
 
 
-#Determine the average weight per item:
+# Determine the average weight per item:
 item_avg_weight = data.pivot_table(values='Item_Weight', index='Item_Identifier')
 
-#Get a boolean variable specifying missing Item_Weight values
+# Get a boolean variable specifying missing Item_Weight values
 miss_bool = data['Item_Weight'].isnull()
 
-#Impute data and check #missing values before and after imputation to confirm
+# Impute data and check #missing values before and after imputation to confirm
 print 'Orignal #missing: %d'% sum(miss_bool)
 data.loc[miss_bool,'Item_Weight'] = data.loc[miss_bool,'Item_Identifier'].apply(lambda x: item_avg_weight[x])
 print 'Final #missing: %d'% sum(data['Item_Weight'].isnull())
@@ -35,10 +35,12 @@ outlet_size_mode = data.pivot_table(values='Outlet_Size', columns='Outlet_Type',
 print 'Mode for each Outlet_Type:'
 print outlet_size_mode
 
-#Get a boolean variable specifying missing Item_Weight values
+exit(0)
+
+# Get a boolean variable specifying missing Item_Weight values
 miss_bool = data['Outlet_Size'].isnull()
 
-#Impute data and check #missing values before and after imputation to confirm
+# Impute data and check #missing values before and after imputation to confirm
 print '\nOrignal #missing: %d'% sum(miss_bool)
 data.loc[miss_bool,'Outlet_Size'] = data.loc[miss_bool,'Outlet_Type'].apply(lambda x: outlet_size_mode[x])
 print sum(data['Outlet_Size'].isnull())

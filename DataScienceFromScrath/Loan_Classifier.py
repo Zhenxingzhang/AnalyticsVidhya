@@ -46,6 +46,8 @@ def data_munging(data, loan_pivot_table):
     data['TotalIncome'] = data['ApplicantIncome'] + data['CoapplicantIncome']
     data['TotalIncome_log'] = np.log(data['TotalIncome'])
 
+    data['Month_Pay'] = data['TotalIncome']/data['Loan_Amount_Term']
+
     data['GenderM'] = np.zeros(len(data['Gender']))
     data.loc[data['Gender'].apply(lambda x: x == 'Male'), 'GenderM'] = 1
 
@@ -132,6 +134,26 @@ def xgboost_classifier(training_data, labels_numeric, test_data):
 
     return predict_result
 
+
+def draw_decision_boundary(model):
+    xx, yy = np.mgrid[-0.8: 1.1: .01, -0.8: 1.1: .01]
+    grid = np.c_[xx.ravel(), yy.ravel()]
+
+    probs = model.predict_proba(grid)[:, 1].reshape(xx.shape)
+
+    f, ax = plt.subplots(figsize=(10, 8))
+    # contour = ax.contourf(xx, yy, probs, 25, cmap="RdBu",
+    #                   vmin=0, vmax=1)
+    # ax_c = f.colorbar(contour)
+    # ax_c.set_label("$P(y = 1)$")
+    # ax_c.set_ticks([0, .25, .5, .75, 1])
+
+    ax.contour(xx, yy, probs, levels=[.5], cmap="Greys", vmin=0, vmax=.6)
+
+    plt.show()
+    print f
+    print "draw decision boundary"
+
 def main():
 
     train_data = pd.read_csv("train_u6lujuX.csv")
@@ -146,16 +168,17 @@ def main():
     predict_data['Credit_History'].fillna(1, inplace=True)
     data_munging(predict_data, loan_table)
 
+    # train_data.fillna(1, inplace=True)
     train_data = train_data[train_data['Credit_History'].notnull()]
     # train_data = train_data[train_data['Credit_History'] == 1.0]
-    print train_data['Loan_Status'].value_counts()
+    # print train_data['Month_Pay'].value_counts()
 
     baseline_prediction = train_data.apply(classify, axis=1)
     baseline_score = metrics.accuracy_score(baseline_prediction, train_data['Loan_Status'])
     print "Baseline: {:.3f}%".format(baseline_score*100)
     print confusion_matrix(train_data['Loan_Status'], baseline_prediction)
 
-    model = LogisticRegression(C=0.2,class_weight='balanced')
+    # model = LogisticRegression(C=1, class_weight='balanced')
     # model = DecisionTreeClassifier(criterion='entropy', max_depth=5, min_samples_split=5)
     # model = RandomForestClassifier(n_estimators=100)
     # model = MLPClassifier(algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(10, 3), random_state=1)
@@ -164,9 +187,10 @@ def main():
     # model = SGDClassifier(class_weight='balanced')
     # model = GaussianNB()
 
-    # params = {'n_estimators': 1200, 'max_depth': 5, 'subsample': 0.5,
+    # params = {'n_estimators': 100, 'max_depth': 5, 'subsample': 0.5,
     #       'learning_rate': 0.01, 'min_samples_leaf': 1, 'random_state': 3}
     # model = ensemble.GradientBoostingClassifier(**params)
+    model = ensemble.AdaBoostClassifier(n_estimators=100)
 
     outcome_var = 'Loan_Status'
 
@@ -175,7 +199,7 @@ def main():
     # predictor_var = ['Loan_Amount_Term','LoanAmount_log', 'Credit_History']
     predictor_var = ['Credit_History', 'GenderM', 'GenderF', 'Married', 'Dependents', 'Education', 'Self_Employed', 'TotalIncome_log', 'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi','LoanAmount_log']
     # predictor_var = ['TotalIncome_log','LoanAmount_log','Credit_History','Dependents','Property_Area']
-
+    predictor_var = ['Credit_History', 'Month_Pay', 'GenderM', 'GenderF',  'Property_AreaRural', 'Property_AreaUrban','Property_AreaSemi']
     outcome = train_data[outcome_var]
 
     training_data = train_data[predictor_var]
@@ -186,24 +210,27 @@ def main():
     scaler.transform(training_data)
     scaler.transform(test_data)
 
-    # classification_model(model, training_data, outcome)
-    # predict_result = model.predict(training_data)
+    classification_model(model, training_data, outcome)
 
-    labels_numeric = pd.Series(train_data['Loan_Status'].replace({'Y': 1, 'N': 0}),dtype = "float")
-    predict_result = xgboost_classifier(training_data, labels_numeric, training_data)
+    predict_result = model.predict(test_data)
 
-    print confusion_matrix(train_data['Loan_Status'], predict_result)
-    print "Binary Precision Score: {0}".format(precision_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
-    print "Binary Recall Score: {0}".format(recall_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
+    # print model.coef_, model.intercept_
+
+    # labels_numeric = pd.Series(train_data['Loan_Status'].replace({'Y': 1, 'N': 0}),dtype = "float")
+    # predict_result = xgboost_classifier(training_data, labels_numeric, training_data)
+
+    # print confusion_matrix(train_data['Loan_Status'], predict_result)
+    # print "Binary Precision Score: {0}".format(precision_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
+    # print "Binary Recall Score: {0}".format(recall_score(train_data['Loan_Status'], predict_result, pos_label='N', average=None))
 
 
     # print train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist()
-    index = [all(tup) for tup in zip((predict_result == 'Y').tolist(), train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist())]
+    # index = [all(tup) for tup in zip((predict_result == 'Y').tolist(), train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist())]
     # print (predict_result == 'Y').tolist()
     # print train_data.apply(lambda x: x['Loan_Status'] == 'N', axis = 1).tolist()
     # print train_data[index].describe()
     # predict_result = model.predict(test_data)
-    # write_to_csv("NN_Prediction.csv", predict_data['Loan_ID'], predict_result, "Neural Network Model")
+    write_to_csv("new_feature.csv", predict_data['Loan_ID'], predict_result, "new features")
 
     # predict_test = test_df.apply(classify, axis = 1)
     # write_to_csv("Classify_on_Credit_History.csv", predict_result, "Simple classifier based on Credit History category!")

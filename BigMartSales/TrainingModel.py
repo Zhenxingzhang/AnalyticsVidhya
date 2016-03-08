@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
-from sklearn import cross_validation, metrics
+from sklearn import cross_validation, metrics, ensemble
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 import matplotlib.pyplot as plt
+
+from sklearn.grid_search import GridSearchCV
 
 def baseline(train_data):
     # mean_sales = train_data['Item_Outlet_Sales'].mean()
@@ -57,11 +59,25 @@ def main():
 
     predictors = [x for x in train.columns if x not in [target]+IDcol]
     # print predictors
-    alg1 = LinearRegression(normalize=True)
-    modelfit(alg1, train, test, predictors, target, IDcol, 'Results/LinearRegression.csv')
-    coef1 = pd.Series(alg1.coef_, predictors).sort_values()
-    coef1.plot(kind='bar', title='Model Coefficients')
-    plt.show()
+    # alg1 = LinearRegression(normalize=True)
+
+    params_grid={
+        'learning_rate': [0.1, 0.05, 0.02, 0.01],
+        'max_depth': [4, 6],
+        'min_samples_leaf': [3,5,9,17],
+        'max_features': [1.0,0.3,0.1]
+    }
+
+    est = ensemble.GradientBoostingRegressor(n_estimators=100)
+    gs_cv = GridSearchCV(est, params_grid , n_jobs=-1).fit(train[predictors], train[target])
+
+    # params = {'n_estimators': 500, 'max_depth': 4, 'min_samples_split': 1, 'learning_rate': 0.01, 'loss': 'ls'}
+    # alg1 = ensemble.GradientBoostingRegressor(**params)
+    #
+    modelfit(gs_cv, train, test, predictors, target, IDcol, 'Results/LinearRegression.csv')
+    # coef1 = pd.Series(alg1.coef_, predictors).sort_values()
+    # coef1.plot(kind='bar', title='Model Coefficients')
+    # plt.show()
 
 if __name__ == "__main__":
     main()
